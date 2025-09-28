@@ -56,15 +56,12 @@ contract FundMe {
         return ethAmount * ethPrice/(10**8);
     }
 
-    function transferOwnership(address newOwner) public {
-        require(msg.sender == owner, "Only owner can call this function");
+    function transferOwnership(address newOwner) public onlyOwner{
         owner = newOwner;
     }
 
-    function getFund() external  {
+    function getFund() external windowClosed onlyOwner{
         require(convertEthToUsd(address(this).balance) >= TARGET, "Not enough fund");
-        require(msg.sender == owner, "Only owner can call this function");
-        require(block.timestamp >= deploymentTimestamp + lockTime, "window is not closed");
         // transfer： 交易失败会revert addr.send(value)
         // payable(msg.sender).transfer(address(this).balance);
 
@@ -80,17 +77,25 @@ contract FundMe {
 
     }
 
-    function refund() external {
+    function refund() external windowClosed {
         require(convertEthToUsd(address(this).balance) < TARGET, "TARGET is reached");
         require(fundersToAmount[msg.sender] != 0, "there is no fund for you");
-        require(block.timestamp >= deploymentTimestamp + lockTime, "window is not closed");
         bool success;
         (success, ) = payable(msg.sender).call{value: fundersToAmount[msg.sender]}("");
         require(success, "transfer tx failed");
         fundersToAmount[msg.sender] = 0;
     }
 
-    
+    modifier windowClosed(){
+        require(block.timestamp >= deploymentTimestamp + lockTime, "window is not closed");
+        //先执行required，再执行后续操作
+        _;
+    }
+
+    modifier onlyOwner(){
+        require(msg.sender == owner, "Only owner can call this function");
+        _;
+    }
 
 
 }
