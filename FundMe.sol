@@ -19,14 +19,20 @@ contract FundMe {
 
     address public owner;
 
-    constructor() {
+    uint256 deploymentTimestamp;
+    uint256 lockTime;
+
+    constructor(uint256 _lockTime) {
         //sepolia test
         dataFeed = AggregatorV3Interface(0x694AA1769357215DE4FAC081bf1f309aDC325306);
         owner = msg.sender;
+        deploymentTimestamp = block.timestamp;
+        lockTime = _lockTime;
     }
 
     function fund() external payable {
         require(convertEthToUsd(msg.value) >= MINIMUN_VALUE, "Send more ETH" );
+        require(block.timestamp < deploymentTimestamp + lockTime, "window is closed");
         fundersToAmount[msg.sender] += msg.value;
     }
 
@@ -58,6 +64,7 @@ contract FundMe {
     function getFund() external  {
         require(convertEthToUsd(address(this).balance) >= TARGET, "Not enough fund");
         require(msg.sender == owner, "Only owner can call this function");
+        require(block.timestamp >= deploymentTimestamp + lockTime, "window is not closed");
         // transfer： 交易失败会revert addr.send(value)
         // payable(msg.sender).transfer(address(this).balance);
 
@@ -76,11 +83,14 @@ contract FundMe {
     function refund() external {
         require(convertEthToUsd(address(this).balance) < TARGET, "TARGET is reached");
         require(fundersToAmount[msg.sender] != 0, "there is no fund for you");
+        require(block.timestamp >= deploymentTimestamp + lockTime, "window is not closed");
         bool success;
         (success, ) = payable(msg.sender).call{value: fundersToAmount[msg.sender]}("");
         require(success, "transfer tx failed");
         fundersToAmount[msg.sender] = 0;
     }
+
+    
 
 
 }
