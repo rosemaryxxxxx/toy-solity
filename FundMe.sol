@@ -17,7 +17,7 @@ contract FundMe {
 
     uint256 constant TARGET = 1000 * 10 ** 18;
 
-    address owner;
+    address public owner;
 
     constructor() {
         //sepolia test
@@ -50,13 +50,37 @@ contract FundMe {
         return ethAmount * ethPrice/(10**8);
     }
 
-    function getFund() external view {
-        require(convertEthToUsd(address(this).balance) >= TARGET, "Not enough fund");
-
-    }
-
     function transferOwnership(address newOwner) public {
         require(msg.sender == owner, "Only owner can call this function");
         owner = newOwner;
     }
+
+    function getFund() external  {
+        require(convertEthToUsd(address(this).balance) >= TARGET, "Not enough fund");
+        require(msg.sender == owner, "Only owner can call this function");
+        // transfer： 交易失败会revert addr.send(value)
+        // payable(msg.sender).transfer(address(this).balance);
+
+        // send：交易失败返回false bool success = addr.send(value)
+        // bool success = payable(msg.sender).send(address(this).balance);
+        // require(success, "tx failed");
+
+        // call: transfer ETH with data return value of function and bool
+        bool success;
+        (success, ) = payable(msg.sender).call{value: address(this).balance}("");
+        require(success, "transfer tx failed");
+        fundersToAmount[msg.sender] = 0;
+
+    }
+
+    function refund() external {
+        require(convertEthToUsd(address(this).balance) < TARGET, "TARGET is reached");
+        require(fundersToAmount[msg.sender] != 0, "there is no fund for you");
+        bool success;
+        (success, ) = payable(msg.sender).call{value: fundersToAmount[msg.sender]}("");
+        require(success, "transfer tx failed");
+        fundersToAmount[msg.sender] = 0;
+    }
+
+
 }
