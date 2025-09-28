@@ -11,13 +11,18 @@ import {AggregatorV3Interface} from "@chainlink/contracts/src/v0.8/shared/interf
 contract FundMe {
     mapping (address => uint256) public fundersToAmount;
 
-    uint256 MINIMUN_VALUE = 100 * 10 ** 18; //usd
+    uint256 constant MINIMUN_VALUE = 100 * 10 ** 18; //usd
 
     AggregatorV3Interface internal dataFeed;
+
+    uint256 constant TARGET = 1000 * 10 ** 18;
+
+    address owner;
 
     constructor() {
         //sepolia test
         dataFeed = AggregatorV3Interface(0x694AA1769357215DE4FAC081bf1f309aDC325306);
+        owner = msg.sender;
     }
 
     function fund() external payable {
@@ -43,5 +48,15 @@ contract FundMe {
     function convertEthToUsd(uint256 ethAmount) internal view returns(uint256) { 
         uint256 ethPrice =uint256( getChainlinkDataFeedLatestAnswer() );
         return ethAmount * ethPrice/(10**8);
+    }
+
+    function getFund() external view {
+        require(convertEthToUsd(address(this).balance) >= TARGET, "Not enough fund");
+
+    }
+
+    function transferOwnership(address newOwner) public {
+        require(msg.sender == owner, "Only owner can call this function");
+        owner = newOwner;
     }
 }
